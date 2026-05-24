@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Job Tracker</title>
+    <link rel="stylesheet" href="sidepanel.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="header">
+        <div class="header-top">
+          <h1>Job Tracker</h1>
+          <a href="#" id="settings-link" class="icon-btn" title="Settings">⚙</a>
+        </div>
+        <div class="stats-bar" id="stats-bar" aria-live="polite"></div>
+        <nav class="tabs" role="tablist">
+          <button type="button" class="tab active" data-tab="board" role="tab" aria-selected="true">
+            Board
+          </button>
+          <button type="button" class="tab" data-tab="jobs" role="tab" aria-selected="false">All jobs</button>
+        </nav>
+        <div class="toolbar">
+          <input
+            type="search"
+            id="search-input"
+            class="search-input"
+            placeholder="Search jobs…"
+            autocomplete="off"
+          />
+          <button type="button" id="btn-add" class="btn btn-ghost" title="Add job manually" aria-label="Add job manually">+</button>
+        </div>
+        <div class="toolbar toolbar-data">
+          <button type="button" id="btn-export" class="btn btn-ghost btn-sm">Export</button>
+          <label class="btn btn-ghost btn-sm import-label">
+            Import
+            <input type="file" id="import-file" accept=".json,application/json" hidden />
+          </label>
+        </div>
+      </header>
+
+      <main class="view view-board active" id="view-board" role="tabpanel">
+        <div class="board-shell">
+          <div
+            class="board-resize-gutter"
+            id="board-resize-gutter"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Drag to resize column width"
+            tabindex="0"
+          ></div>
+          <div class="board-scroll">
+            <div class="board-bulk-bar hidden" id="board-bulk-bar" aria-live="polite">
+              <span class="bulk-count" id="bulk-count">0 selected</span>
+              <label class="bulk-move-label">
+                Move to
+                <select id="bulk-move-column" class="bulk-move-select"></select>
+              </label>
+              <button type="button" id="bulk-move-btn" class="btn btn-primary btn-sm">Move</button>
+              <button type="button" id="bulk-delete-btn" class="btn btn-danger btn-sm">Delete</button>
+              <button type="button" id="bulk-clear-btn" class="btn btn-ghost btn-sm">Clear</button>
+            </div>
+            <div class="kanban" id="kanban"></div>
+          </div>
+        </div>
+      </main>
+
+      <main class="view view-jobs" id="view-jobs" role="tabpanel" hidden>
+        <div class="list-toolbar">
+          <label class="sort-label">
+            Sort
+            <select id="sort-select">
+              <option value="updated">Recently updated</option>
+              <option value="created">Recently added</option>
+              <option value="title">Title</option>
+              <option value="company">Company</option>
+            </select>
+          </label>
+        </div>
+        <ul class="job-list" id="job-list"></ul>
+      </main>
+
+      <section class="job-detail hidden" id="job-detail" aria-label="Job details">
+        <header class="detail-header">
+          <button type="button" id="detail-back" class="btn btn-ghost btn-sm">← Back</button>
+          <div class="detail-actions-top">
+            <button type="button" id="detail-edit" class="btn btn-ghost btn-sm">Edit</button>
+            <button type="button" id="detail-delete" class="btn btn-danger btn-sm">Delete</button>
+          </div>
+        </header>
+        <div class="detail-body" id="detail-body"></div>
+        <footer class="detail-footer">
+          <label class="move-label">
+            Status
+            <select id="detail-status"></select>
+          </label>
+          <a id="detail-url" class="btn btn-primary" href="#" target="_blank" rel="noopener">Open posting</a>
+        </footer>
+      </section>
+    </div>
+
+    <dialog id="job-dialog" class="job-dialog">
+      <form id="job-form" method="dialog">
+        <h2 id="dialog-title">Edit job</h2>
+        <label class="form-column-label">
+          <strong>Board column</strong>
+          <select name="columnId" id="form-column"></select>
+          <small class="field-hint">Saved, Applied, Interview, Offer, or Rejected</small>
+        </label>
+        <label>
+          Job title
+          <input type="text" name="title" required />
+        </label>
+        <label>
+          Company
+          <input type="text" name="company" />
+        </label>
+        <label>
+          Location / workplace
+          <input type="text" name="location" />
+        </label>
+        <label>
+          Pay
+          <input type="text" name="pay" />
+        </label>
+        <label>
+          Employment type
+          <input type="text" name="roleType" placeholder="Full-time, Remote, etc." />
+        </label>
+        <label>
+          Job URL
+          <input type="url" name="url" />
+        </label>
+        <label>
+          About the role
+          <textarea name="description" rows="8"></textarea>
+        </label>
+        <label>
+          Notes
+          <textarea name="notes" rows="3" placeholder="Interview dates, recruiter name, etc."></textarea>
+        </label>
+        <div class="dialog-actions">
+          <button type="button" id="btn-delete" class="btn btn-danger hidden">Delete</button>
+          <span class="spacer"></span>
+          <button type="button" id="btn-cancel" class="btn btn-ghost">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div id="panel-toast" class="panel-toast" aria-live="polite"></div>
+
+    <script type="module" src="sidepanel.js"></script>
+  </body>
+</html>
