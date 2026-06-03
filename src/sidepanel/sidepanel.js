@@ -18,6 +18,10 @@ import {
 import { columnLabel, formatDate } from "../shared/job-model.js";
 import { consumeHighlightJobId } from "../shared/messaging.js";
 import { JT_BOARD_COLUMN_WIDTH } from "../shared/constants-module.js";
+import {
+  applySettingsToForm,
+  bindSettingsPanel,
+} from "../shared/settings-ui.js";
 import "../shared/description-format-core.js";
 
 const { descriptionToDisplayHtml } = globalThis.JTDescriptionFormat;
@@ -40,6 +44,8 @@ const bulkMoveColumn = document.getElementById("bulk-move-column");
 const bulkMoveBtn = document.getElementById("bulk-move-btn");
 const bulkDeleteBtn = document.getElementById("bulk-delete-btn");
 const bulkClearBtn = document.getElementById("bulk-clear-btn");
+const settingsForm = document.getElementById("settings-form");
+const headerToolbar = document.getElementById("header-toolbar");
 
 let jobsCache = [];
 let appSettings = { confirmBeforeDelete: true, darkMode: false, boardColumnWidths: {} };
@@ -56,17 +62,27 @@ let columnResizeDrag = null;
 async function init() {
   closeDetail();
 
-  const settingsLink = document.getElementById("settings-link");
-  settingsLink.href = chrome.runtime.getURL("src/options/options.html");
-  settingsLink.target = "_blank";
-  settingsLink.setAttribute("aria-label", "Open settings");
-
   populateColumnSelects();
   appSettings = await getSettings();
   document.documentElement.dataset.theme = appSettings.darkMode ? "dark" : "light";
   columnWidths = normalizeColumnWidths(appSettings);
+  applySettingsToForm(settingsForm, appSettings);
+  bindSettingsPanel({
+    form: settingsForm,
+    savedMsg: document.getElementById("settings-saved-msg"),
+    onThemeChange: (settings) => {
+      appSettings = { ...appSettings, ...settings };
+      document.documentElement.dataset.theme = appSettings.darkMode ? "dark" : "light";
+    },
+    onSettingsSaved: async (settings) => {
+      appSettings = { ...appSettings, ...settings };
+      columnWidths = normalizeColumnWidths(appSettings);
+      await refresh();
+    },
+  });
 
   bindEvents();
+  syncHeaderForTab(activeTab);
   await refresh();
   await focusHighlightedJob();
 
@@ -74,6 +90,7 @@ async function init() {
     if (area !== "local") return;
     if (changes.jt_settings) {
       appSettings = { ...appSettings, ...changes.jt_settings.newValue };
+      applySettingsToForm(settingsForm, appSettings);
       if (changes.jt_settings.newValue?.darkMode !== undefined) {
         document.documentElement.dataset.theme = appSettings.darkMode ? "dark" : "light";
       }
@@ -316,6 +333,12 @@ function onKanbanKeydown(e) {
   }
 }
 
+function syncHeaderForTab(tab) {
+  const showJobsUi = tab === "board" || tab === "jobs";
+  if (headerToolbar) headerToolbar.hidden = !showJobsUi;
+  if (statsBar) statsBar.hidden = tab === "settings";
+}
+
 function setTab(tab) {
   activeTab = tab;
   document.querySelectorAll(".tab").forEach((el) => {
@@ -327,6 +350,9 @@ function setTab(tab) {
   document.getElementById("view-board").classList.toggle("active", tab === "board");
   document.getElementById("view-jobs").hidden = tab !== "jobs";
   document.getElementById("view-jobs").classList.toggle("active", tab === "jobs");
+  document.getElementById("view-settings").hidden = tab !== "settings";
+  document.getElementById("view-settings").classList.toggle("active", tab === "settings");
+  syncHeaderForTab(tab);
   if (tab !== "board") clearBoardSelection();
   closeDetail();
   render();
@@ -460,7 +486,7 @@ function renderStats() {
 
 function render() {
   if (activeTab === "board") renderKanban();
-  else renderJobList();
+  else if (activeTab === "jobs") renderJobList();
 }
 
 function nextColumn(columnId) {

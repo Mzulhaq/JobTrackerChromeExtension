@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Job Tracker",
-  "version": "1.8.1",
+  "version": "1.8.2",
   "minimum_chrome_version": "116",
   "description": "Scrape job postings from any site and track them on a kanban board.",
   "permissions": ["storage", "activeTab", "scripting", "tabs"],
@@ -23,7 +23,7 @@
   },
   "options_ui": {
     "page": "src/options/options.html",
-    "open_in_tab": true
+    "open_in_tab": false
   },
   "content_scripts": [
     {

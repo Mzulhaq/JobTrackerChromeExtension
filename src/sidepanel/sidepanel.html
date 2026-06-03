@@ -11,7 +11,6 @@
       <header class="header">
         <div class="header-top">
           <h1>Job Tracker</h1>
-          <a href="#" id="settings-link" class="icon-btn" title="Settings">⚙</a>
         </div>
         <div class="stats-bar" id="stats-bar" aria-live="polite"></div>
         <nav class="tabs" role="tablist">
@@ -19,7 +18,9 @@
             Board
           </button>
           <button type="button" class="tab" data-tab="jobs" role="tab" aria-selected="false">All jobs</button>
+          <button type="button" class="tab" data-tab="settings" role="tab" aria-selected="false">Settings</button>
         </nav>
+        <div class="header-toolbar" id="header-toolbar">
         <div class="toolbar">
           <input
             type="search"
@@ -36,6 +37,7 @@
             Import
             <input type="file" id="import-file" accept=".json,application/json" hidden />
           </label>
+        </div>
         </div>
       </header>
 
@@ -70,6 +72,73 @@
           </label>
         </div>
         <ul class="job-list" id="job-list"></ul>
+      </main>
+
+      <main class="view view-settings" id="view-settings" role="tabpanel" hidden>
+        <div class="settings-scroll jt-scroll-y">
+          <form id="settings-form" class="settings-form">
+            <section class="settings-card">
+              <h2>Appearance</h2>
+              <label class="toggle-row">
+                <span>
+                  <strong>Dark mode</strong>
+                  <small>Applies to the side panel.</small>
+                </span>
+                <input type="checkbox" name="darkMode" />
+              </label>
+            </section>
+            <section class="settings-card">
+              <h2>On-page capture</h2>
+              <label class="toggle-row">
+                <span>
+                  <strong>Job site button</strong>
+                  <small>Show the logo on job and application sites.</small>
+                </span>
+                <input type="checkbox" name="persistentOverlay" />
+              </label>
+              <label class="toggle-row">
+                <span>
+                  <strong>Highlight mode</strong>
+                  <small>Select text to capture details when auto-scrape fails.</small>
+                </span>
+                <input type="checkbox" name="highlightMode" />
+              </label>
+            </section>
+            <section class="settings-card">
+              <h2>Board</h2>
+              <label class="toggle-row">
+                <span>
+                  <strong>Open board after saving</strong>
+                  <small>Show the board when you add a job from a job site.</small>
+                </span>
+                <input type="checkbox" name="openBoardOnSave" checked />
+              </label>
+            </section>
+            <section class="settings-card">
+              <h2>Accessibility</h2>
+              <label class="toggle-row">
+                <span>
+                  <strong>Confirm before delete</strong>
+                  <small>Ask before removing jobs from the board.</small>
+                </span>
+                <input type="checkbox" name="confirmBeforeDelete" checked />
+              </label>
+            </section>
+            <section class="settings-card">
+              <h2>Your data</h2>
+              <p class="settings-desc">Jobs are stored locally on this device.</p>
+              <div class="settings-actions">
+                <button type="button" class="btn btn-ghost btn-sm" data-settings-export>Export backup</button>
+                <label class="btn btn-ghost btn-sm import-label">
+                  Import backup
+                  <input type="file" data-settings-import accept=".json,application/json" hidden />
+                </label>
+                <button type="button" class="btn btn-danger btn-sm" data-settings-clear>Delete all jobs</button>
+              </div>
+            </section>
+            <p class="settings-saved" id="settings-saved-msg" hidden>Settings saved</p>
+          </form>
+        </div>
       </main>
 
       <section class="job-detail hidden" id="job-detail" aria-label="Job details">
