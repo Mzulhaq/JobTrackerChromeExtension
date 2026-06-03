@@ -748,9 +748,8 @@ async function onJobFormSubmit(e) {
     await updateJob(editingJobId, data);
     showToast("Job updated");
   } else {
-    const { duplicate, job } = await addJob(data, data.columnId);
-    if (duplicate) showToast(`Already saved: ${job.title || job.company}`);
-    else showToast("Job added");
+    await addJob(data, data.columnId, { allowDuplicate: true });
+    showToast("Job added");
   }
   jobDialog.close();
   editingJobId = null;

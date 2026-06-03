@@ -4,6 +4,7 @@
 const PreviewPanel = (() => {
   let panel = null;
   let activeCleanup = null;
+  let pendingJobUrl = "";
 
   function escapeHtml(str) {
     const d = document.createElement("div");
@@ -74,6 +75,23 @@ const PreviewPanel = (() => {
     return panel;
   }
 
+  function resolveJobPageUrl(scrapedUrl) {
+    const scraped = String(scrapedUrl || "").trim();
+    if (scraped && !/\/jobs\/search\/?$/i.test(scraped.split("?")[0])) {
+      return scraped;
+    }
+    try {
+      const u = new URL(location.href);
+      const viewMatch = u.pathname.match(/\/jobs\/view\/(\d+)/i);
+      if (viewMatch) return `https://www.linkedin.com/jobs/view/${viewMatch[1]}/`;
+      const id = u.searchParams.get("currentJobId");
+      if (id) return `https://www.linkedin.com/jobs/view/${id}/`;
+    } catch {
+      /* ignore */
+    }
+    return scraped || location.href.split("#")[0];
+  }
+
   function readForm(panelEl) {
     const f = panelEl.querySelector(".jt-preview-body");
     return {
@@ -83,7 +101,7 @@ const PreviewPanel = (() => {
       description: f.querySelector('[name="description"]').value.trim(),
       pay: f.querySelector('[name="pay"]').value.trim(),
       roleType: f.querySelector('[name="roleType"]').value.trim(),
-      url: location.href.split("?")[0],
+      url: resolveJobPageUrl(pendingJobUrl),
     };
   }
 
@@ -106,6 +124,7 @@ const PreviewPanel = (() => {
   }
 
   function open(job) {
+    pendingJobUrl = job?.url || "";
     const el = ensurePanel();
     if (activeCleanup) {
       activeCleanup();

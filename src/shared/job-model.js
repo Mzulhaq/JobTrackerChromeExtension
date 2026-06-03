@@ -26,17 +26,56 @@ export function jobFromScrape(data, columnId = "saved") {
   return normalizeJob({ ...data, columnId, source: data.source || "scrape" });
 }
 
+/** Stable key for dedupe — ignores generic job-list URLs without a posting id. */
+export function normalizeJobUrlForDedupe(url) {
+  const raw = String(url || "").trim();
+  if (!raw) return "";
+
+  try {
+    const u = new URL(raw);
+    const viewMatch = u.pathname.match(/\/jobs\/view\/(\d+)/i);
+    if (viewMatch) return `linkedin:job:${viewMatch[1]}`;
+
+    const currentJobId = u.searchParams.get("currentJobId");
+    if (currentJobId && /^\d+$/.test(currentJobId)) return `linkedin:job:${currentJobId}`;
+
+    const path = u.pathname.replace(/\/$/, "").toLowerCase();
+    const generic =
+      /\/jobs\/search$/i.test(path) ||
+      /\/jobs$/i.test(path) ||
+      /\/job-search$/i.test(path) ||
+      /\/jobs\/collections$/i.test(path);
+    if (generic) return "";
+
+    const ghMatch = u.pathname.match(/\/jobs\/(\d+)/i);
+    if (u.hostname.includes("greenhouse.io") && ghMatch) {
+      return `greenhouse:job:${ghMatch[1]}`;
+    }
+
+    return `${u.hostname.toLowerCase()}${path}`;
+  } catch {
+    const base = raw.split("?")[0].replace(/\/$/, "").toLowerCase();
+    if (/\/jobs\/search$/i.test(base)) return "";
+    return base;
+  }
+}
+
 export function findDuplicate(jobs, candidate) {
-  const url = (candidate.url || "").split("?")[0].replace(/\/$/, "");
-  const key = `${(candidate.title || "").toLowerCase()}|${(candidate.company || "").toLowerCase()}`;
+  const urlKey = normalizeJobUrlForDedupe(candidate.url);
+  const title = (candidate.title || "").trim().toLowerCase();
+  const company = (candidate.company || "").trim().toLowerCase();
 
   return jobs.find((j) => {
-    if (url && j.url) {
-      const ju = j.url.split("?")[0].replace(/\/$/, "");
-      if (ju === url) return true;
+    if (urlKey) {
+      const ju = normalizeJobUrlForDedupe(j.url);
+      if (ju && ju === urlKey) return true;
     }
-    const jk = `${(j.title || "").toLowerCase()}|${(j.company || "").toLowerCase()}`;
-    return key.length > 3 && jk === key;
+    if (title.length >= 3 && company.length >= 2) {
+      const jt = (j.title || "").trim().toLowerCase();
+      const jc = (j.company || "").trim().toLowerCase();
+      if (jt === title && jc === company) return true;
+    }
+    return false;
   });
 }
 
