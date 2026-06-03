@@ -118,17 +118,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true;
 });
 
+function isTrustedExtensionSender(sender) {
+  return sender?.id === chrome.runtime.id;
+}
+
 async function handleMessage(message, sender) {
+  if (!isTrustedExtensionSender(sender)) {
+    return { ok: false, error: "Unauthorized" };
+  }
+
   switch (message.type) {
     case JT_MESSAGE.addJob: {
-      const result = await addJob(message.payload, message.columnId || "saved", {
-        allowDuplicate: message.allowDuplicate,
-      });
-      if (result.duplicate && message.updateIfDuplicate) {
-        const updated = await updateJob(result.job.id, message.payload);
-        return { ok: true, job: updated || result.job, duplicate: true, updated: !!updated };
+      try {
+        const result = await addJob(message.payload, message.columnId || "saved", {
+          allowDuplicate: message.allowDuplicate,
+        });
+        if (result.duplicate && message.updateIfDuplicate) {
+          const updated = await updateJob(result.job.id, message.payload);
+          return { ok: true, job: updated || result.job, duplicate: true, updated: !!updated };
+        }
+        return { ok: true, job: result.job, duplicate: result.duplicate };
+      } catch (err) {
+        return { ok: false, error: err?.message || "Could not save job" };
       }
-      return { ok: true, job: result.job, duplicate: result.duplicate };
     }
     case JT_MESSAGE.openSidePanel: {
       if (message.jobId) {
@@ -146,8 +158,8 @@ async function handleMessage(message, sender) {
       return { ok: true, settings };
     }
     case JT_MESSAGE.fetchLinkedInJob: {
-      const jobId = message.jobId;
-      if (!jobId) return { ok: false, error: "No job id" };
+      const jobId = String(message.jobId || "").trim();
+      if (!/^\d{5,15}$/.test(jobId)) return { ok: false, error: "Invalid job id" };
       const url = `https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/${jobId}`;
       const res = await fetch(url, { credentials: "omit" });
       const html = await res.text();

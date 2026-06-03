@@ -2,6 +2,19 @@ import { JT_KANBAN_COLUMNS } from "./constants-module.js";
 
 export const JOB_SCHEMA_VERSION = 1;
 
+/** Only http(s) links are stored or opened from job records. */
+export function sanitizeJobUrl(url) {
+  const s = String(url || "").trim();
+  if (!s) return "";
+  try {
+    const u = new URL(s);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return "";
+    return u.href;
+  } catch {
+    return "";
+  }
+}
+
 export function normalizeJob(raw) {
   const now = Date.now();
   return {
@@ -16,7 +29,7 @@ export function normalizeJob(raw) {
     pay: String(raw.pay || "").trim(),
     roleType: String(raw.roleType || "").trim(),
     description: String(raw.description || "").trim(),
-    url: String(raw.url || "").trim(),
+    url: sanitizeJobUrl(raw.url),
     source: String(raw.source || "manual").trim(),
     notes: String(raw.notes || "").trim(),
   };

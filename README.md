@@ -25,6 +25,13 @@ Capture job postings from any website and track them on a **kanban board** in Ch
 4. **All jobs** — click a job for full details, edit, change status
 5. **Export** — download JSON + CSV from the side panel
 
+## Privacy & publishing
+
+- **[PRIVACY.md](PRIVACY.md)** — Use this URL (or a hosted copy) in the Chrome Web Store privacy field.
+- **[PUBLISHING.md](PUBLISHING.md)** — Zip, listing copy, permission justifications, and review checklist.
+
+Data stays on your device. No analytics, accounts, or cloud sync. Optional LinkedIn guest API fetch only when you capture a LinkedIn job.
+
 ## Storage
 
 | Field | Description |

@@ -4,6 +4,7 @@ import {
   exportData,
   importData,
   clearAllJobs,
+  JT_MAX_IMPORT_BYTES,
 } from "./storage.js";
 
 export function readSettingsForm(form) {
@@ -66,13 +67,18 @@ export function bindSettingsPanel({
     e.target.value = "";
     if (!file) return;
     try {
-      const payload = JSON.parse(await file.text());
+      if (file.size > JT_MAX_IMPORT_BYTES) {
+        alert("Backup file is too large (max 8 MB).");
+        return;
+      }
+      const text = await file.text();
+      const payload = JSON.parse(text);
       const merge = confirm("Merge with existing jobs? Cancel = replace all.");
-      const n = await importData(payload, merge ? "merge" : "replace");
+      const n = await importData(payload, merge ? "merge" : "replace", { byteLength: file.size });
       alert(merge ? `Merged ${n} new job(s).` : `Restored ${n} job(s).`);
       onSettingsSaved?.(await getSettings());
-    } catch {
-      alert("Invalid backup file.");
+    } catch (err) {
+      alert(err?.message || "Invalid backup file.");
     }
   });
 

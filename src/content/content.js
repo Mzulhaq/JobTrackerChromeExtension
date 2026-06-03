@@ -96,7 +96,7 @@
     clearBusyUi();
 
     if (!res?.ok || !res.job) {
-      showToast("Could not save. Reload the extension and try again.", "error");
+      showToast(res?.error || "Could not save. Reload the extension and try again.", "error");
       return null;
     }
 

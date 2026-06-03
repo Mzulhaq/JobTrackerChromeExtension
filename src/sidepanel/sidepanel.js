@@ -14,8 +14,9 @@ import {
   sortJobs,
   filterJobs,
   JT_KANBAN_COLUMNS,
+  JT_MAX_IMPORT_BYTES,
 } from "../shared/storage.js";
-import { columnLabel, formatDate } from "../shared/job-model.js";
+import { columnLabel, formatDate, sanitizeJobUrl } from "../shared/job-model.js";
 import { consumeHighlightJobId } from "../shared/messaging.js";
 import { JT_BOARD_COLUMN_WIDTH } from "../shared/constants-module.js";
 import {
@@ -719,10 +720,12 @@ function showDetail(jobId) {
   jobDetailEl.classList.remove("hidden");
 
   detailStatus.value = job.columnId;
-  if (job.url) {
-    detailUrl.href = job.url;
+  const safeUrl = sanitizeJobUrl(job.url);
+  if (safeUrl) {
+    detailUrl.href = safeUrl;
     detailUrl.classList.remove("hidden");
   } else {
+    detailUrl.href = "#";
     detailUrl.classList.add("hidden");
   }
 
@@ -866,13 +869,17 @@ async function importJobs(e) {
   e.target.value = "";
   if (!file) return;
   try {
+    if (file.size > JT_MAX_IMPORT_BYTES) {
+      alert("Backup file is too large (max 8 MB).");
+      return;
+    }
     const payload = JSON.parse(await file.text());
     const merge = confirm("Merge with existing jobs? Cancel = replace all.");
-    const count = await importData(payload, merge ? "merge" : "replace");
+    const count = await importData(payload, merge ? "merge" : "replace", { byteLength: file.size });
     showToast(merge ? `Merged ${count} job(s)` : `Restored ${count} job(s)`);
     await refresh();
-  } catch {
-    alert("Invalid backup file.");
+  } catch (err) {
+    alert(err?.message || "Invalid backup file.");
   }
 }
 

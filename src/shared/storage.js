@@ -12,6 +12,10 @@ import {
   JOB_SCHEMA_VERSION,
 } from "./job-model.js";
 
+/** Guard against malicious or accidental huge imports filling disk quota. */
+export const JT_MAX_JOBS = 5000;
+export const JT_MAX_IMPORT_BYTES = 8 * 1024 * 1024;
+
 export async function getSettings() {
   const result = await chrome.storage.local.get(JT_STORAGE_KEYS.settings);
   return { ...JT_DEFAULT_SETTINGS, ...result[JT_STORAGE_KEYS.settings] };
@@ -47,6 +51,9 @@ export async function getJobById(jobId) {
 
 export async function addJob(jobData, columnId = "saved", options = {}) {
   const jobs = await getJobs();
+  if (jobs.length >= JT_MAX_JOBS && !options.allowDuplicate) {
+    throw new Error(`Job limit reached (${JT_MAX_JOBS}). Export and delete old jobs to continue.`);
+  }
   const candidate = normalizeJob({ ...jobData, columnId });
 
   if (!options.allowDuplicate) {
@@ -54,6 +61,9 @@ export async function addJob(jobData, columnId = "saved", options = {}) {
     if (dup) return { job: dup, duplicate: true };
   }
 
+  if (jobs.length >= JT_MAX_JOBS) {
+    throw new Error(`Job limit reached (${JT_MAX_JOBS}). Export and delete old jobs to continue.`);
+  }
   jobs.push(candidate);
   await saveJobs(jobs);
   return { job: candidate, duplicate: false };
@@ -136,11 +146,17 @@ export async function exportData() {
   };
 }
 
-export async function importData(payload, mode = "merge") {
+export async function importData(payload, mode = "merge", options = {}) {
   if (!payload?.jobs || !Array.isArray(payload.jobs)) {
     throw new Error("Invalid backup file");
   }
+  if (options.byteLength != null && options.byteLength > JT_MAX_IMPORT_BYTES) {
+    throw new Error("Backup file is too large (max 8 MB).");
+  }
   const incoming = payload.jobs.map(normalizeJob);
+  if (incoming.length > JT_MAX_JOBS) {
+    throw new Error(`Backup contains too many jobs (max ${JT_MAX_JOBS}).`);
+  }
   if (mode === "replace") {
     await saveJobs(incoming);
     return incoming.length;
@@ -149,6 +165,9 @@ export async function importData(payload, mode = "merge") {
   const merged = [...existing];
   let added = 0;
   for (const job of incoming) {
+    if (merged.length >= JT_MAX_JOBS) {
+      throw new Error(`Import would exceed ${JT_MAX_JOBS} jobs. Merged ${added} before stopping.`);
+    }
     if (findDuplicate(merged, job)) continue;
     merged.push(job);
     added++;
