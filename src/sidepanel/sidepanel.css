@@ -10,7 +10,9 @@
   --column-bg: #e2e8f0;
   --shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
   --radius: 10px;
-  --jt-col-width: 188px;
+  --scroll-track: transparent;
+  --scroll-thumb: #cbd5e1;
+  --scroll-thumb-hover: #94a3b8;
 }
 
 [data-theme="dark"] {
@@ -24,6 +26,8 @@
   --danger: #f87171;
   --column-bg: #1e293b;
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --scroll-thumb: #475569;
+  --scroll-thumb-hover: #64748b;
 }
 
 * {
@@ -36,13 +40,58 @@ body {
   font-size: 13px;
   background: var(--bg);
   color: var(--text);
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Themed scrollbars — one axis per container */
+.jt-scroll-y {
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+}
+
+.jt-scroll-x {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+}
+
+.jt-scroll-y::-webkit-scrollbar,
+.jt-scroll-x::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.jt-scroll-y::-webkit-scrollbar-track,
+.jt-scroll-x::-webkit-scrollbar-track {
+  background: var(--scroll-track);
+}
+
+.jt-scroll-y::-webkit-scrollbar-thumb,
+.jt-scroll-x::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 999px;
+}
+
+.jt-scroll-y::-webkit-scrollbar-thumb:hover,
+.jt-scroll-x::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+}
+
+.jt-scroll-y::-webkit-scrollbar-corner,
+.jt-scroll-x::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 .app {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
   position: relative;
 }
 
@@ -123,63 +172,16 @@ body {
 .view-board {
   flex: 1;
   min-height: 0;
-}
-
-.board-shell {
-  display: flex;
-  flex: 1;
-  min-height: 0;
+  overflow: hidden;
 }
 
 .board-scroll {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  min-height: 0;
-}
-
-.board-resize-gutter {
-  flex: 0 0 12px;
-  cursor: col-resize;
-  touch-action: none;
-  position: relative;
-  z-index: 6;
-  flex-shrink: 0;
-}
-
-.board-resize-gutter::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 8px;
-  bottom: 8px;
-  width: 3px;
-  transform: translateX(-50%);
-  border-radius: 3px;
-  background: var(--border);
-  transition: background 0.12s, width 0.12s;
-}
-
-.board-resize-gutter:hover::after,
-.board-resize-gutter.is-dragging::after,
-.board-resize-gutter:focus-visible::after {
-  background: var(--primary);
-  width: 4px;
-}
-
-.board-resize-gutter:focus-visible {
-  outline: none;
-}
-
-.board-shell.is-resizing,
-.board-shell.is-resizing .board-scroll {
-  cursor: col-resize;
-  user-select: none;
-}
-
-.board-shell.is-resizing .kanban {
-  pointer-events: none;
+  overflow: hidden;
 }
 
 .board-bulk-bar {
@@ -285,17 +287,26 @@ body {
   display: flex;
 }
 
+.board-kanban-wrap {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
 .kanban {
   display: flex;
   gap: 10px;
   padding: 10px 12px 16px;
-  overflow-x: auto;
-  flex: 1;
-  align-items: flex-start;
-  min-height: 200px;
+  min-height: 100%;
+  height: 100%;
+  align-items: stretch;
+  width: max-content;
+  min-width: 100%;
 }
 
 .board-empty-hint {
+  flex-shrink: 0;
+}
   margin: 0 12px 8px;
   padding: 10px 12px;
   border-radius: var(--radius);
@@ -323,14 +334,67 @@ body {
 }
 
 .column {
-  flex: 0 0 var(--jt-col-width);
-  min-width: var(--jt-col-width);
+  position: relative;
+  flex: 0 0 auto;
   background: var(--column-bg);
   border-radius: var(--radius);
   padding: 8px;
-  max-height: calc(100vh - 200px);
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.column-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -6px;
+  width: 12px;
+  height: 100%;
+  cursor: col-resize;
+  touch-action: none;
+  z-index: 4;
+}
+
+.column-resize-handle::after {
+  content: "";
+  position: absolute;
+  right: 5px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--border);
+  transition: background 0.12s, width 0.12s;
+}
+
+.column-resize-handle:hover::after,
+.column-resize-handle.is-dragging::after,
+.column-resize-handle:focus-visible::after {
+  background: var(--primary);
+  width: 4px;
+}
+
+.column-resize-handle:focus-visible {
+  outline: none;
+}
+
+.column.is-resizing .column-cards {
+  pointer-events: none;
+}
+
+.kanban.is-resizing-columns {
+  cursor: col-resize;
+  user-select: none;
+}
+
+.kanban.is-resizing-columns .column-cards,
+.kanban.is-resizing-columns .card {
+  pointer-events: none;
+}
+
+.kanban.is-resizing-columns .column-resize-handle {
+  pointer-events: auto;
 }
 
 .column-header {
@@ -342,6 +406,7 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--muted);
+  flex-shrink: 0;
 }
 
 .column-count {
@@ -352,7 +417,7 @@ body {
 
 .column-cards {
   flex: 1;
-  overflow-y: auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -394,6 +459,9 @@ body {
   border: 1px solid var(--border);
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
 .card.card-multi-selected {
@@ -421,6 +489,13 @@ body {
 .card-body {
   padding: 4px 10px 6px;
   cursor: pointer;
+  min-width: 0;
+}
+
+.card-title,
+.card-company {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .card-actions {
@@ -429,6 +504,7 @@ body {
   gap: 4px;
   padding: 6px 8px 8px;
   border-top: 1px solid var(--border);
+  min-width: 0;
 }
 
 .card-btn {
@@ -543,6 +619,10 @@ body {
   border-radius: 4px;
   background: var(--bg);
   color: var(--muted);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .card-meta {

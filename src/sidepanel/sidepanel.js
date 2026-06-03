@@ -34,8 +34,6 @@ const detailUrl = document.getElementById("detail-url");
 const jobDialog = document.getElementById("job-dialog");
 const jobForm = document.getElementById("job-form");
 const formColumn = document.getElementById("form-column");
-const boardResizeGutter = document.getElementById("board-resize-gutter");
-const boardShell = document.querySelector(".board-shell");
 const boardBulkBar = document.getElementById("board-bulk-bar");
 const bulkCountEl = document.getElementById("bulk-count");
 const bulkMoveColumn = document.getElementById("bulk-move-column");
@@ -44,7 +42,8 @@ const bulkDeleteBtn = document.getElementById("bulk-delete-btn");
 const bulkClearBtn = document.getElementById("bulk-clear-btn");
 
 let jobsCache = [];
-let appSettings = { confirmBeforeDelete: true, darkMode: false, boardColumnWidth: JT_BOARD_COLUMN_WIDTH.default };
+let appSettings = { confirmBeforeDelete: true, darkMode: false, boardColumnWidths: {} };
+let columnWidths = {};
 let editingJobId = null;
 let selectedJobId = null;
 let selectedJobIds = new Set();
@@ -52,7 +51,7 @@ let lastBoardSelectId = null;
 let dragJobId = null;
 let activeTab = "board";
 let searchQuery = "";
-let boardResizeDrag = null;
+let columnResizeDrag = null;
 
 async function init() {
   closeDetail();
@@ -65,8 +64,7 @@ async function init() {
   populateColumnSelects();
   appSettings = await getSettings();
   document.documentElement.dataset.theme = appSettings.darkMode ? "dark" : "light";
-  applyBoardColumnWidth(appSettings.boardColumnWidth);
-  setupBoardResize();
+  columnWidths = normalizeColumnWidths(appSettings);
 
   bindEvents();
   await refresh();
@@ -79,8 +77,10 @@ async function init() {
       if (changes.jt_settings.newValue?.darkMode !== undefined) {
         document.documentElement.dataset.theme = appSettings.darkMode ? "dark" : "light";
       }
-      if (changes.jt_settings.newValue?.boardColumnWidth !== undefined) {
-        applyBoardColumnWidth(appSettings.boardColumnWidth);
+      if (changes.jt_settings.newValue?.boardColumnWidths !== undefined ||
+          changes.jt_settings.newValue?.boardColumnWidth !== undefined) {
+        columnWidths = normalizeColumnWidths(appSettings);
+        if (activeTab === "board") renderKanban();
       }
     }
     if (changes.jt_jobs || changes.jt_settings) {
@@ -130,39 +130,88 @@ function clampBoardColumnWidth(n) {
   return Math.min(max, Math.max(min, v));
 }
 
-function readBoardColumnWidth() {
-  const raw = getComputedStyle(document.documentElement).getPropertyValue("--jt-col-width").trim();
-  const n = parseInt(raw, 10);
-  return clampBoardColumnWidth(Number.isFinite(n) ? n : JT_BOARD_COLUMN_WIDTH.default);
-}
-
-function applyBoardColumnWidth(w) {
-  const n = clampBoardColumnWidth(w);
-  document.documentElement.style.setProperty("--jt-col-width", `${n}px`);
-  if (boardResizeGutter) {
-    boardResizeGutter.setAttribute("aria-valuenow", String(n));
-    boardResizeGutter.setAttribute("aria-valuemin", String(JT_BOARD_COLUMN_WIDTH.min));
-    boardResizeGutter.setAttribute("aria-valuemax", String(JT_BOARD_COLUMN_WIDTH.max));
+function normalizeColumnWidths(settings) {
+  const out = {};
+  for (const col of JT_KANBAN_COLUMNS) {
+    out[col.id] = JT_BOARD_COLUMN_WIDTH.default;
   }
+  if (settings?.boardColumnWidths && typeof settings.boardColumnWidths === "object") {
+    for (const col of JT_KANBAN_COLUMNS) {
+      if (settings.boardColumnWidths[col.id] != null) {
+        out[col.id] = clampBoardColumnWidth(settings.boardColumnWidths[col.id]);
+      }
+    }
+  } else if (settings?.boardColumnWidth != null) {
+    const legacy = clampBoardColumnWidth(settings.boardColumnWidth);
+    for (const col of JT_KANBAN_COLUMNS) out[col.id] = legacy;
+  }
+  return out;
 }
 
-function setupBoardResize() {
-  if (!boardResizeGutter || !boardShell) return;
+function getColumnWidth(columnId) {
+  return columnWidths[columnId] ?? JT_BOARD_COLUMN_WIDTH.default;
+}
 
-  const onMove = (e) => {
-    if (!boardResizeDrag) return;
-    const n = clampBoardColumnWidth(boardResizeDrag.startW + (e.clientX - boardResizeDrag.startX));
-    applyBoardColumnWidth(n);
+function applyColumnWidth(columnEl, columnId) {
+  const w = getColumnWidth(columnId);
+  columnEl.style.width = `${w}px`;
+  columnEl.style.flexBasis = `${w}px`;
+}
+
+function setupColumnResize(handle, columnEl, columnId) {
+  handle.setAttribute("aria-valuemin", String(JT_BOARD_COLUMN_WIDTH.min));
+  handle.setAttribute("aria-valuemax", String(JT_BOARD_COLUMN_WIDTH.max));
+  handle.setAttribute("aria-valuenow", String(getColumnWidth(columnId)));
+
+  handle.addEventListener("keydown", async (e) => {
+    const step = JT_BOARD_COLUMN_WIDTH.step;
+    let next = null;
+    if (e.key === "ArrowRight") next = getColumnWidth(columnId) + step;
+    if (e.key === "ArrowLeft") next = getColumnWidth(columnId) - step;
+    if (next == null) return;
+    e.preventDefault();
+    columnWidths[columnId] = clampBoardColumnWidth(next);
+    applyColumnWidth(columnEl, columnId);
+    handle.setAttribute("aria-valuenow", String(columnWidths[columnId]));
+    await saveSettings({ boardColumnWidths: { ...columnWidths } });
+  });
+}
+
+function onColumnResizePointerDown(e) {
+  const handle = e.target.closest(".column-resize-handle");
+  if (!handle || e.button !== 0) return;
+
+  const columnEl = handle.closest(".column");
+  const columnId = columnEl?.dataset.columnId;
+  if (!columnId) return;
+
+  e.preventDefault();
+  e.stopPropagation();
+
+  const startX = e.clientX;
+  const startW = columnEl.getBoundingClientRect().width;
+
+  columnResizeDrag = { columnEl, columnId, handle, startX, startW };
+  columnEl.classList.add("is-resizing");
+  handle.classList.add("is-dragging");
+  kanbanEl.classList.add("is-resizing-columns");
+
+  const onMove = (ev) => {
+    if (!columnResizeDrag) return;
+    const n = clampBoardColumnWidth(columnResizeDrag.startW + (ev.clientX - startX));
+    columnWidths[columnId] = n;
+    applyColumnWidth(columnEl, columnId);
+    handle.setAttribute("aria-valuenow", String(n));
   };
 
-  const onEnd = async (e) => {
-    if (!boardResizeDrag) return;
-    boardResizeDrag = null;
-    boardShell.classList.remove("is-resizing");
-    boardResizeGutter.classList.remove("is-dragging");
-    if (e?.pointerId != null) {
+  const onEnd = async (ev) => {
+    if (!columnResizeDrag) return;
+    columnEl.classList.remove("is-resizing");
+    handle.classList.remove("is-dragging");
+    kanbanEl.classList.remove("is-resizing-columns");
+    if (ev?.pointerId != null) {
       try {
-        boardResizeGutter.releasePointerCapture(e.pointerId);
+        handle.releasePointerCapture(ev.pointerId);
       } catch {
         /* already released */
       }
@@ -170,34 +219,15 @@ function setupBoardResize() {
     document.removeEventListener("pointermove", onMove);
     document.removeEventListener("pointerup", onEnd);
     document.removeEventListener("pointercancel", onEnd);
-    const n = readBoardColumnWidth();
-    appSettings = { ...appSettings, boardColumnWidth: n };
-    await saveSettings({ boardColumnWidth: n });
+    columnResizeDrag = null;
+    appSettings = { ...appSettings, boardColumnWidths: { ...columnWidths } };
+    await saveSettings({ boardColumnWidths: { ...columnWidths } });
   };
 
-  boardResizeGutter.addEventListener("pointerdown", (e) => {
-    if (e.button !== 0) return;
-    e.preventDefault();
-    boardResizeDrag = { startX: e.clientX, startW: readBoardColumnWidth() };
-    boardShell.classList.add("is-resizing");
-    boardResizeGutter.classList.add("is-dragging");
-    boardResizeGutter.setPointerCapture(e.pointerId);
-    document.addEventListener("pointermove", onMove);
-    document.addEventListener("pointerup", onEnd);
-    document.addEventListener("pointercancel", onEnd);
-  });
-
-  boardResizeGutter.addEventListener("keydown", async (e) => {
-    const step = JT_BOARD_COLUMN_WIDTH.step;
-    let next = null;
-    if (e.key === "ArrowRight") next = readBoardColumnWidth() + step;
-    if (e.key === "ArrowLeft") next = readBoardColumnWidth() - step;
-    if (next == null) return;
-    e.preventDefault();
-    applyBoardColumnWidth(next);
-    appSettings = { ...appSettings, boardColumnWidth: next };
-    await saveSettings({ boardColumnWidth: next });
-  });
+  handle.setPointerCapture(e.pointerId);
+  document.addEventListener("pointermove", onMove);
+  document.addEventListener("pointerup", onEnd);
+  document.addEventListener("pointercancel", onEnd);
 }
 
 function bindEvents() {
@@ -219,6 +249,7 @@ function bindEvents() {
   kanbanEl.addEventListener("click", onKanbanClick);
   kanbanEl.addEventListener("keydown", onKanbanKeydown);
   kanbanEl.addEventListener("change", onKanbanChange);
+  kanbanEl.addEventListener("pointerdown", onColumnResizePointerDown);
 
   bulkMoveBtn?.addEventListener("click", bulkMoveSelected);
   bulkDeleteBtn?.addEventListener("click", bulkDeleteSelected);
@@ -448,7 +479,7 @@ function renderKanban() {
       hint.className = "board-empty-hint";
       hint.textContent =
         "Your kanban board is below. Save a job from any job page (click the logo), then drag cards between columns as you apply.";
-      kanbanEl.parentElement.insertBefore(hint, kanbanEl);
+      kanbanEl.closest(".board-scroll")?.insertBefore(hint, kanbanEl.closest(".board-kanban-wrap"));
     }
   } else {
     hint?.remove();
@@ -460,6 +491,8 @@ function renderKanban() {
     const columnJobs = filtered.filter((j) => j.columnId === col.id);
     const column = document.createElement("section");
     column.className = "column";
+    column.dataset.columnId = col.id;
+    applyColumnWidth(column, col.id);
     column.setAttribute("aria-label", `${col.label} column`);
     column.innerHTML = `
       <div class="column-header">
@@ -469,8 +502,16 @@ function renderKanban() {
           <span class="column-count" aria-label="${columnJobs.length} jobs">${columnJobs.length}</span>
         </div>
       </div>
-      <div class="column-cards" data-drop-zone="${col.id}"></div>
+      <div class="column-cards jt-scroll-y" data-drop-zone="${col.id}"></div>
+      <div
+        class="column-resize-handle"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize ${col.label} column"
+        tabindex="0"
+      ></div>
     `;
+    setupColumnResize(column.querySelector(".column-resize-handle"), column, col.id);
     const cardsEl = column.querySelector(".column-cards");
     setupDropZone(cardsEl, col.id);
 

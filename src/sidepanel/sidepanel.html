@@ -40,17 +40,8 @@
       </header>
 
       <main class="view view-board active" id="view-board" role="tabpanel">
-        <div class="board-shell">
-          <div
-            class="board-resize-gutter"
-            id="board-resize-gutter"
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Drag to resize column width"
-            tabindex="0"
-          ></div>
-          <div class="board-scroll">
-            <div class="board-bulk-bar hidden" id="board-bulk-bar" aria-live="polite">
+        <div class="board-scroll">
+          <div class="board-bulk-bar hidden" id="board-bulk-bar" aria-live="polite">
               <span class="bulk-count" id="bulk-count">0 selected</span>
               <label class="bulk-move-label">
                 Move to
@@ -60,9 +51,10 @@
               <button type="button" id="bulk-delete-btn" class="btn btn-danger btn-sm">Delete</button>
               <button type="button" id="bulk-clear-btn" class="btn btn-ghost btn-sm">Clear</button>
             </div>
-            <div class="kanban" id="kanban"></div>
+            <div class="board-kanban-wrap jt-scroll-x">
+              <div class="kanban" id="kanban"></div>
+            </div>
           </div>
-        </div>
       </main>
 
       <main class="view view-jobs" id="view-jobs" role="tabpanel" hidden>

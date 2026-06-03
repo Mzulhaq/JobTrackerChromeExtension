@@ -3,6 +3,7 @@
   let settings = {
     persistentOverlay: true,
     highlightMode: true,
+    openBoardOnSave: true,
   };
   let detectInFlight = false;
 
@@ -110,7 +111,9 @@
       showToast(`Added: ${res.job.title || res.job.company}`, "success");
     }
 
-    sendExt({ type: MSG.openSidePanel, jobId: res.job.id }, 3000);
+    if (settings.openBoardOnSave !== false) {
+      sendExt({ type: MSG.openSidePanel, jobId: res.job.id }, 3000);
+    }
     return res.job;
   }
 

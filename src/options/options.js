@@ -16,6 +16,7 @@ async function init() {
   form.persistentOverlay.checked = settings.persistentOverlay;
   form.highlightMode.checked = settings.highlightMode;
   form.confirmBeforeDelete.checked = settings.confirmBeforeDelete !== false;
+  form.openBoardOnSave.checked = settings.openBoardOnSave !== false;
 }
 
 form.addEventListener("change", async () => {
@@ -24,6 +25,7 @@ form.addEventListener("change", async () => {
     persistentOverlay: form.persistentOverlay.checked,
     highlightMode: form.highlightMode.checked,
     confirmBeforeDelete: form.confirmBeforeDelete.checked,
+    openBoardOnSave: form.openBoardOnSave.checked,
   };
   await saveSettings(settings);
   document.documentElement.dataset.theme = settings.darkMode ? "dark" : "light";

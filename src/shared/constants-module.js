@@ -10,7 +10,8 @@ export const JT_DEFAULT_SETTINGS = {
   persistentOverlay: true,
   highlightMode: true,
   confirmBeforeDelete: true,
-  boardColumnWidth: JT_BOARD_COLUMN_WIDTH.default,
+  openBoardOnSave: true,
+  boardColumnWidths: {},
 };
 
 export const JT_KANBAN_COLUMNS = [
